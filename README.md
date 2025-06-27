@@ -1,10 +1,11 @@
 # webImagesSS
 A simple screen saver that shows a web image and refreshes. Built in python because why not.  
-Intended for web images that randomly generate or update perodically such as weather radars or other updating photos.
+Intended for web images that randomly generate or update perodically such as weather radars or other updating photos.  
+Work-in-progress.
   
 ## Build
 ### Requirements
-pip install requests pillow pyinstaller pynput  
+pip install requests pillow pyinstaller pynput screeninfo  
 ### Then Build
 python -m PyInstaller --noconfirm --onefile --windowed webImagesSS.py  
 ### After the build completes

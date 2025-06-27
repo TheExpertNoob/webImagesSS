@@ -6,14 +6,18 @@ import sys
 import os
 import json
 from pynput import mouse, keyboard
+from screeninfo import get_monitors
+from pathlib import Path
 import tkinter.simpledialog
 import tkinter.messagebox
-from pathlib import Path
 
 # === DEFAULT SETTINGS ===
 DEFAULT_CONFIG = {
-    "image_url": "https://gandalfsax.com/images/vg.jpg",  # Replace with your default URL
-    "refresh_interval": 60  # seconds
+    "image_urls": [
+        "https://gandalfsax.com/images/vg.jpg",
+        "https://gandalfsax.com/images/gaming.jpg"
+    ],
+    "refresh_interval": 60
 }
 
 def get_config_path():
@@ -26,14 +30,13 @@ def load_config():
     config_path = get_config_path()
     if not os.path.exists(config_path):
         save_config(DEFAULT_CONFIG)
-        return DEFAULT_CONFIG["image_url"], DEFAULT_CONFIG["refresh_interval"]
-
+        return DEFAULT_CONFIG["image_urls"], DEFAULT_CONFIG["refresh_interval"]
     try:
         with open(config_path, "r") as f:
             config = json.load(f)
-            return config.get("image_url", DEFAULT_CONFIG["image_url"]), config.get("refresh_interval", DEFAULT_CONFIG["refresh_interval"])
+            return config.get("image_urls", DEFAULT_CONFIG["image_urls"]), config.get("refresh_interval", DEFAULT_CONFIG["refresh_interval"])
     except Exception:
-        return DEFAULT_CONFIG["image_url"], DEFAULT_CONFIG["refresh_interval"]
+        return DEFAULT_CONFIG["image_urls"], DEFAULT_CONFIG["refresh_interval"]
 
 def save_config(config):
     config_path = get_config_path()
@@ -44,49 +47,39 @@ def save_config(config):
         pass
 
 class FullscreenImageViewer(tk.Tk):
-    def __init__(self, url, interval):
+    def __init__(self, url, interval, monitor):
         super().__init__()
         self.url = url
-        self.interval = interval * 1000  # milliseconds
+        self.interval = interval * 1000
+        self.monitor = monitor
 
-        self.attributes('-fullscreen', True)
+        self.geometry(f"{monitor.width}x{monitor.height}+{monitor.x}+{monitor.y}")
+        self.overrideredirect(True)
+        self.attributes('-topmost', True)
         self.configure(background='black')
-        self.bind("<Escape>", lambda e: self.quit_app())
 
         self.label = tk.Label(self, bg='black')
         self.label.pack(expand=True, fill=tk.BOTH)
 
-        self.mouse_listener = mouse.Listener(on_move=self.quit_app, on_click=self.quit_app, on_scroll=self.quit_app)
-        self.keyboard_listener = keyboard.Listener(on_press=self.quit_app)
-        self.mouse_listener.start()
-        self.keyboard_listener.start()
+        self.bind("<Escape>", lambda e: self.quit_all())
 
         self.refresh_image()
 
-    def quit_app(self, *args):
-        try:
-            self.mouse_listener.stop()
-            self.keyboard_listener.stop()
-        except Exception:
-            pass
-        self.destroy()
+    def set_quit_callback(self, quit_fn):
+        self.quit_all = quit_fn
 
     def refresh_image(self):
         try:
             headers = {
                 "User-Agent": (
-                    "Pooh's Web Image Screen Saver" # It would be a crime to change this
+                    "Pooh's Web Image Screensaver" # it would be a crime to change this
                 )
             }
             resp = requests.get(self.url, headers=headers, timeout=10)
             resp.raise_for_status()
-            img_data = resp.content
-            img = Image.open(io.BytesIO(img_data))
+            img = Image.open(io.BytesIO(resp.content))
 
-            screen_width = self.winfo_screenwidth()
-            screen_height = self.winfo_screenheight()
-            img = ImageOps.fit(img, (screen_width, screen_height), method=Image.LANCZOS, centering=(0.5, 0.5))
-
+            img = ImageOps.fit(img, (self.monitor.width, self.monitor.height), method=Image.LANCZOS, centering=(0.5, 0.5))
             photo = ImageTk.PhotoImage(img)
             self.label.config(image=photo)
             self.label.image = photo
@@ -96,24 +89,57 @@ class FullscreenImageViewer(tk.Tk):
 
         self.after(self.interval, self.refresh_image)
 
+class MultiScreenManager:
+    def __init__(self, urls, interval):
+        self.urls = urls
+        self.interval = interval
+        self.windows = []
+        self.monitors = get_monitors()
+
+        self.mouse_listener = mouse.Listener(on_move=self.quit_all, on_click=self.quit_all, on_scroll=self.quit_all)
+        self.keyboard_listener = keyboard.Listener(on_press=self.quit_all)
+
+    def launch(self):
+        for i, monitor in enumerate(self.monitors):
+            image_url = self.urls[i % len(self.urls)]
+            win = FullscreenImageViewer(image_url, self.interval, monitor)
+            win.set_quit_callback(self.quit_all)
+            self.windows.append(win)
+
+        self.mouse_listener.start()
+        self.keyboard_listener.start()
+
+        self.windows[0].mainloop()
+
+    def quit_all(self, *args):
+        try:
+            self.mouse_listener.stop()
+            self.keyboard_listener.stop()
+        except Exception:
+            pass
+        for win in self.windows:
+            try:
+                win.destroy()
+            except:
+                pass
+
 if __name__ == "__main__":
     args = sys.argv[1:] if len(sys.argv) > 1 else []
 
     if len(args) > 0 and args[0].lower().startswith("/c"):
-        # Handle config mode
-        url = tk.simpledialog.askstring("Image URL", "Enter image URL:", initialvalue=DEFAULT_CONFIG["image_url"])
+        url_input = tk.simpledialog.askstring("Image URLs", "Enter image URLs (comma-separated):",
+                                              initialvalue=",".join(DEFAULT_CONFIG["image_urls"]))
         interval = tk.simpledialog.askinteger("Refresh Interval (seconds)", "Enter refresh interval:",
                                               initialvalue=DEFAULT_CONFIG["refresh_interval"], minvalue=1)
-        if url and interval:
-            save_config({"image_url": url, "refresh_interval": interval})
+        if url_input and interval:
+            urls = [u.strip() for u in url_input.split(",") if u.strip()]
+            save_config({"image_urls": urls, "refresh_interval": interval})
             tk.messagebox.showinfo("Saved", f"Settings saved to:\n{get_config_path()}")
         sys.exit()
 
     elif len(args) > 0 and args[0].lower().startswith("/p"):
-        # Preview mode — not implemented
         sys.exit()
 
     else:
-        IMAGE_URL, REFRESH_INTERVAL = load_config()
-        app = FullscreenImageViewer(IMAGE_URL, REFRESH_INTERVAL)
-        app.mainloop()
+        IMAGE_URLS, REFRESH_INTERVAL = load_config()
+        MultiScreenManager(IMAGE_URLS, REFRESH_INTERVAL).launch()
