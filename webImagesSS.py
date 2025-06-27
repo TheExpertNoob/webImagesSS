@@ -46,9 +46,9 @@ def save_config(config):
     except Exception:
         pass
 
-class FullscreenImageViewer(tk.Tk):
-    def __init__(self, url, interval, monitor):
-        super().__init__()
+class FullscreenImageViewer(tk.Toplevel):
+    def __init__(self, parent, url, interval, monitor):
+        super().__init__(parent)
         self.url = url
         self.interval = interval * 1000
         self.monitor = monitor
@@ -96,20 +96,23 @@ class MultiScreenManager:
         self.windows = []
         self.monitors = get_monitors()
 
+        self.root = tk.Tk()
+        self.root.withdraw()
+
         self.mouse_listener = mouse.Listener(on_move=self.quit_all, on_click=self.quit_all, on_scroll=self.quit_all)
         self.keyboard_listener = keyboard.Listener(on_press=self.quit_all)
 
     def launch(self):
         for i, monitor in enumerate(self.monitors):
             image_url = self.urls[i % len(self.urls)]
-            win = FullscreenImageViewer(image_url, self.interval, monitor)
+            win = FullscreenImageViewer(self.root, image_url, self.interval, monitor)
             win.set_quit_callback(self.quit_all)
             self.windows.append(win)
 
         self.mouse_listener.start()
         self.keyboard_listener.start()
 
-        self.windows[0].mainloop()
+        self.root.mainloop()
 
     def quit_all(self, *args):
         try:
@@ -122,6 +125,10 @@ class MultiScreenManager:
                 win.destroy()
             except:
                 pass
+        try:
+            self.root.destroy()
+        except:
+            pass
 
 if __name__ == "__main__":
     args = sys.argv[1:] if len(sys.argv) > 1 else []
