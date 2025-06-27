@@ -97,9 +97,10 @@ class FullscreenImageViewer(tk.Tk):
         self.after(self.interval, self.refresh_image)
 
 if __name__ == "__main__":
-    args = sys.argv[1:] if len(sys.argv) > 0 else []
+    args = sys.argv[1:] if len(sys.argv) > 1 else []
 
-    if "/c" in args:
+    if len(args) > 0 and args[0].lower().startswith("/c"):
+        # Handle config mode
         url = tk.simpledialog.askstring("Image URL", "Enter image URL:", initialvalue=DEFAULT_CONFIG["image_url"])
         interval = tk.simpledialog.askinteger("Refresh Interval (seconds)", "Enter refresh interval:",
                                               initialvalue=DEFAULT_CONFIG["refresh_interval"], minvalue=1)
@@ -108,7 +109,8 @@ if __name__ == "__main__":
             tk.messagebox.showinfo("Saved", f"Settings saved to:\n{get_config_path()}")
         sys.exit()
 
-    elif "/p" in args:
+    elif len(args) > 0 and args[0].lower().startswith("/p"):
+        # Preview mode — not implemented
         sys.exit()
 
     else:
