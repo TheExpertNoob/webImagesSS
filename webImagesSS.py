@@ -15,9 +15,9 @@ import tkinter.messagebox
 DEFAULT_CONFIG = {
     "image_urls": [
         "https://gandalfsax.com/images/vg.jpg",
-        "https://gandalfsax.com/images/gaming.jpg"
+        "https://gandalfsax.com/images/hw.jpg"
     ],
-    "refresh_interval": 60
+    "refresh_interval": 300
 }
 
 def get_config_path():
@@ -47,9 +47,10 @@ def save_config(config):
         pass
 
 class FullscreenImageViewer(tk.Toplevel):
-    def __init__(self, parent, url, interval, monitor):
+    def __init__(self, parent, urls, interval, monitor):
         super().__init__(parent)
-        self.url = url
+        self.urls = urls
+        self.url_index = 0
         self.interval = interval * 1000
         self.monitor = monitor
 
@@ -57,6 +58,7 @@ class FullscreenImageViewer(tk.Toplevel):
         self.overrideredirect(True)
         self.attributes('-topmost', True)
         self.configure(background='black')
+        self.config(cursor="none")
 
         self.label = tk.Label(self, bg='black')
         self.label.pack(expand=True, fill=tk.BOTH)
@@ -72,10 +74,13 @@ class FullscreenImageViewer(tk.Toplevel):
         try:
             headers = {
                 "User-Agent": (
-                    "Pooh's Web Image Screensaver" # it would be a crime to change this
+                    "Pooh's WebImage SS" # it would be a crime to change this
                 )
             }
-            resp = requests.get(self.url, headers=headers, timeout=10)
+            url = self.urls[self.url_index % len(self.urls)]
+            self.url_index += 1
+
+            resp = requests.get(url, headers=headers, timeout=10)
             resp.raise_for_status()
             img = Image.open(io.BytesIO(resp.content))
 
@@ -104,8 +109,7 @@ class MultiScreenManager:
 
     def launch(self):
         for i, monitor in enumerate(self.monitors):
-            image_url = self.urls[i % len(self.urls)]
-            win = FullscreenImageViewer(self.root, image_url, self.interval, monitor)
+            win = FullscreenImageViewer(self.root, self.urls, self.interval, monitor)
             win.set_quit_callback(self.quit_all)
             self.windows.append(win)
 
