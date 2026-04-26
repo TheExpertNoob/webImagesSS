@@ -14,8 +14,9 @@ import tkinter.messagebox
 # === DEFAULT SETTINGS ===
 DEFAULT_CONFIG = {
     "image_urls": [
-        "https://gandalfsax.com/images/vg.jpg",
-        "https://gandalfsax.com/images/hw.jpg"
+        "https://gandalfsax.com/images/ag.jpg",
+        "https://gandalfsax.com/images/wac.jpg",
+        "https://gandalfsax.com/images/lt.jpg"
     ],
     "refresh_interval": 300
 }
@@ -47,10 +48,10 @@ def save_config(config):
         pass
 
 class FullscreenImageViewer(tk.Toplevel):
-    def __init__(self, parent, urls, interval, monitor):
+    def __init__(self, parent, urls, interval, monitor, start_index=0):
         super().__init__(parent)
         self.urls = urls
-        self.url_index = 0
+        self.url_index = start_index
         self.interval = interval * 1000
         self.monitor = monitor
 
@@ -109,7 +110,7 @@ class MultiScreenManager:
 
     def launch(self):
         for i, monitor in enumerate(self.monitors):
-            win = FullscreenImageViewer(self.root, self.urls, self.interval, monitor)
+            win = FullscreenImageViewer(self.root, self.urls, self.interval, monitor, start_index=i)
             win.set_quit_callback(self.quit_all)
             self.windows.append(win)
 
