@@ -17,12 +17,16 @@ DEFAULT_CONFIG = {
         "https://gandalfsax.com/images/hw.jpg",
         "https://gandalfsax.com/images/vg.jpg"
     ],
+    "portrait_image_urls": [
+        "https://gandalfsax.com/images/phw.jpg",
+        "https://gandalfsax.com/images/pvg.jpg"
+    ],
     "refresh_interval": 300
 }
 
 def get_config_path():
     home = Path.home()
-    config_dir = home / "webImagesSS" # Change if you want a different config folder
+    config_dir = home / "webImagesSS"
     config_dir.mkdir(parents=True, exist_ok=True)
     return str(config_dir / "config.json")
 
@@ -30,13 +34,25 @@ def load_config():
     config_path = get_config_path()
     if not os.path.exists(config_path):
         save_config(DEFAULT_CONFIG)
-        return DEFAULT_CONFIG["image_urls"], DEFAULT_CONFIG["refresh_interval"]
+        return (
+            DEFAULT_CONFIG["image_urls"],
+            DEFAULT_CONFIG["portrait_image_urls"],
+            DEFAULT_CONFIG["refresh_interval"]
+        )
     try:
         with open(config_path, "r") as f:
             config = json.load(f)
-            return config.get("image_urls", DEFAULT_CONFIG["image_urls"]), config.get("refresh_interval", DEFAULT_CONFIG["refresh_interval"])
+            return (
+                config.get("image_urls", DEFAULT_CONFIG["image_urls"]),
+                config.get("portrait_image_urls", DEFAULT_CONFIG["portrait_image_urls"]),
+                config.get("refresh_interval", DEFAULT_CONFIG["refresh_interval"])
+            )
     except Exception:
-        return DEFAULT_CONFIG["image_urls"], DEFAULT_CONFIG["refresh_interval"]
+        return (
+            DEFAULT_CONFIG["image_urls"],
+            DEFAULT_CONFIG["portrait_image_urls"],
+            DEFAULT_CONFIG["refresh_interval"]
+        )
 
 def save_config(config):
     config_path = get_config_path()
@@ -95,8 +111,9 @@ class FullscreenImageViewer(tk.Toplevel):
         self.after(self.interval, self.refresh_image)
 
 class MultiScreenManager:
-    def __init__(self, urls, interval):
+    def __init__(self, urls, portrait_urls, interval):
         self.urls = urls
+        self.portrait_urls = portrait_urls
         self.interval = interval
         self.windows = []
         self.monitors = get_monitors()
@@ -109,7 +126,10 @@ class MultiScreenManager:
 
     def launch(self):
         for i, monitor in enumerate(self.monitors):
-            win = FullscreenImageViewer(self.root, self.urls, self.interval, monitor, start_index=i)
+            is_portrait = monitor.height > monitor.width
+            active_urls = self.portrait_urls if is_portrait else self.urls
+
+            win = FullscreenImageViewer(self.root, active_urls, self.interval, monitor, start_index=i)
             win.set_quit_callback(self.quit_all)
             self.windows.append(win)
 
@@ -138,13 +158,30 @@ if __name__ == "__main__":
     args = sys.argv[1:] if len(sys.argv) > 1 else []
 
     if len(args) > 0 and args[0].lower().startswith("/c"):
-        url_input = tk.simpledialog.askstring("Image URLs", "Enter image URLs (comma-separated):",
-                                              initialvalue=",".join(DEFAULT_CONFIG["image_urls"]))
-        interval = tk.simpledialog.askinteger("Refresh Interval (seconds)", "Enter refresh interval:",
-                                              initialvalue=DEFAULT_CONFIG["refresh_interval"], minvalue=1)
-        if url_input and interval:
+        url_input = tk.simpledialog.askstring(
+            "Landscape Image URLs",
+            "Enter landscape image URLs (comma-separated):",
+            initialvalue=",".join(DEFAULT_CONFIG["image_urls"])
+        )
+        portrait_url_input = tk.simpledialog.askstring(
+            "Portrait Image URLs",
+            "Enter portrait image URLs (comma-separated):",
+            initialvalue=",".join(DEFAULT_CONFIG["portrait_image_urls"])
+        )
+        interval = tk.simpledialog.askinteger(
+            "Refresh Interval (seconds)",
+            "Enter refresh interval:",
+            initialvalue=DEFAULT_CONFIG["refresh_interval"],
+            minvalue=1
+        )
+        if url_input and portrait_url_input and interval:
             urls = [u.strip() for u in url_input.split(",") if u.strip()]
-            save_config({"image_urls": urls, "refresh_interval": interval})
+            portrait_urls = [u.strip() for u in portrait_url_input.split(",") if u.strip()]
+            save_config({
+                "image_urls": urls,
+                "portrait_image_urls": portrait_urls,
+                "refresh_interval": interval
+            })
             tk.messagebox.showinfo("Saved", f"Settings saved to:\n{get_config_path()}")
         sys.exit()
 
@@ -152,5 +189,5 @@ if __name__ == "__main__":
         sys.exit()
 
     else:
-        IMAGE_URLS, REFRESH_INTERVAL = load_config()
-        MultiScreenManager(IMAGE_URLS, REFRESH_INTERVAL).launch()
+        IMAGE_URLS, PORTRAIT_IMAGE_URLS, REFRESH_INTERVAL = load_config()
+        MultiScreenManager(IMAGE_URLS, PORTRAIT_IMAGE_URLS, REFRESH_INTERVAL).launch()
