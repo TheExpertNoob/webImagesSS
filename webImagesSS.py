@@ -14,9 +14,8 @@ import tkinter.messagebox
 # === DEFAULT SETTINGS ===
 DEFAULT_CONFIG = {
     "image_urls": [
-        "https://gandalfsax.com/images/ag.jpg",
-        "https://gandalfsax.com/images/wac.jpg",
-        "https://gandalfsax.com/images/lt.jpg"
+        "https://gandalfsax.com/images/hw.jpg",
+        "https://gandalfsax.com/images/vg.jpg"
     ],
     "refresh_interval": 300
 }
